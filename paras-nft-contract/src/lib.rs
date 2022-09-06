@@ -868,12 +868,12 @@ impl Contract {
 
         let mut token_metadata = self.tokens.token_metadata_by_id.as_ref().unwrap().get(&token_id).unwrap();
 
-        token_metadata.title = Some(format!(
-            "{}{}{}",
-            series_metadata.title.unwrap(),
-            TITLE_DELIMETER,
-            token_id_iter.next().unwrap()
-        ));
+        // token_metadata.title = Some(format!(
+        //     "{}{}{}",
+        //     series_metadata.title.unwrap(),
+        //     TITLE_DELIMETER,
+        //     token_id_iter.next().unwrap()
+        // ));
 
         token_metadata.reference = series_metadata.reference;
         token_metadata.media = series_metadata.media;
