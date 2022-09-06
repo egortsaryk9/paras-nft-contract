@@ -318,7 +318,7 @@ impl Contract {
         let initial_storage_usage = env::storage_usage();
         let caller_id = env::predecessor_account_id();
 
-        self.asset_max_supply_limit();
+        assert!(false, "'nft_create_series' is forbidden, use 'nft_buy'");
 
         if creator_id.is_some() {
             assert_eq!(creator_id.unwrap().to_string(), caller_id, "Paras: Caller is not creator_id");
@@ -503,6 +503,9 @@ impl Contract {
         token_series_id: TokenSeriesId,
         receiver_id: ValidAccountId
     ) -> TokenId {
+        
+        assert!(false, "'token_series_id' is forbidden, use 'nft_buy'");
+
         let initial_storage_usage = env::storage_usage();
 
         let token_series = self.token_series_by_id.get(&token_series_id).expect("Paras: Token series not exist");
@@ -527,6 +530,7 @@ impl Contract {
         account_id: ValidAccountId,
         msg: Option<String>,
     ) -> Option<Promise> {
+        assert!(false, "'nft_mint_and_approve' is forbidden, use 'nft_buy'");
         let initial_storage_usage = env::storage_usage();
 
         let token_series = self.token_series_by_id.get(&token_series_id).expect("Paras: Token series not exist");
@@ -648,6 +652,8 @@ impl Contract {
         token_series_id: TokenSeriesId, 
         decrease_copies: U64
     ) -> U64 {
+        assert!(false, "'nft_decrease_series_copies' is forbidden'");
+
         assert_one_yocto();
 
         let mut token_series = self.token_series_by_id.get(&token_series_id).expect("Token series not exist");
