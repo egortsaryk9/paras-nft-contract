@@ -34,7 +34,7 @@ const GAS_FOR_MINT: Gas = 90_000_000_000_000;
 const NO_DEPOSIT: Balance = 0;
 const MAX_PRICE: Balance = 1_000_000_000 * 10u128.pow(24);
 
-pub const NFT_PRICE: u128 = 3_490_000_000_000_000_000_000_000;
+pub const NFT_PRICE: u128 = 3_480_000_000_000_000_000_000_000;
 
 pub type TokenSeriesId = String;
 pub type TimestampSec = u32;
