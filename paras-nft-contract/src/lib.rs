@@ -457,7 +457,7 @@ impl Contract {
                     "token_series_id": token_series_id,
                     "token_metadata": token_metadata,
                     "creator_id": receiver_id,
-                    "price": Some(NFT_PRICE),
+                    "price": Some(NFT_PRICE.to_string()),
                     "royalty": royalty_res,
                     "transaction_fee": &current_transaction_fee.to_string()
                 }
