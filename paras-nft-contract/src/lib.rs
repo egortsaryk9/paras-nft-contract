@@ -504,7 +504,7 @@ impl Contract {
         receiver_id: ValidAccountId
     ) -> TokenId {
         
-        assert!(false, "'token_series_id' is forbidden, use 'nft_buy'");
+        assert!(false, "'nft_mint' is forbidden, use 'nft_buy'");
 
         let initial_storage_usage = env::storage_usage();
 
