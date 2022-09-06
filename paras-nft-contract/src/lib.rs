@@ -36,6 +36,8 @@ const MAX_PRICE: Balance = 1_000_000_000 * 10u128.pow(24);
 
 pub const NFT_PRICE: u128 = 3_480_000_000_000_000_000_000_000;
 
+pub const NFT_MAX_SUPPLY: u128 = 26_800;
+
 pub type TokenSeriesId = String;
 pub type TimestampSec = u32;
 pub type ContractAndTokenId = String;
@@ -316,6 +318,8 @@ impl Contract {
         let initial_storage_usage = env::storage_usage();
         let caller_id = env::predecessor_account_id();
 
+        self.asset_max_supply_limit();
+
         if creator_id.is_some() {
             assert_eq!(creator_id.unwrap().to_string(), caller_id, "Paras: Caller is not creator_id");
         }
@@ -418,6 +422,8 @@ impl Contract {
         let attached_deposit = env::attached_deposit();
         let receiver_id = env::predecessor_account_id();
 
+        self.asset_max_supply_limit();
+        
         assert!(
             attached_deposit >= NFT_PRICE,
             "Paras: attached deposit is less than price : {}",
@@ -1171,6 +1177,13 @@ impl Contract {
             env::predecessor_account_id(),
             self.tokens.owner_id,
             "Paras: Owner only"
+        );
+    }
+
+    fn asset_max_supply_limit(&self) {
+        let current_supply = self.token_series_by_id.len() as u128;
+        assert!(current_supply < NFT_MAX_SUPPLY,
+            "Max NFT supply is reached"
         );
     }
 
