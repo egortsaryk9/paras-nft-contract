@@ -181,10 +181,10 @@ impl Contract {
         current_fee: u16,
     ) -> Self {
         metadata.assert_valid();
-        Self {
+        let mut this = Self {
             tokens: NonFungibleToken::new(
                 StorageKey::NonFungibleToken,
-                owner_id,
+                owner_id.clone(),
                 Some(StorageKey::TokenMetadata),
                 Some(StorageKey::Enumeration),
                 Some(StorageKey::Approval),
@@ -201,7 +201,9 @@ impl Contract {
                 transaction_fee: UnorderedMap::new(StorageKey::MarketDataTransactionFee)
             },
             token_metadata_admins: LookupSet::new(StorageKey::TokenMetadataAdmins),
-        }
+        };
+        this.token_metadata_admins.insert(&owner_id.into());
+        this
     }
 
     #[init(ignore_state)]
@@ -1121,16 +1123,16 @@ impl Contract {
         );
     }
 
-    pub fn add_token_metadata_admin(&mut self, account_id: AccountId) {
+    pub fn add_token_metadata_admin(&mut self, account_id: ValidAccountId) {
         self.assert_owner();
-        if !self.token_metadata_admins.insert(&account_id) {
+        if !self.token_metadata_admins.insert(&account_id.into()) {
             env::panic("The account is already registered as a token metadata admin".as_bytes());
         }
     }
 
-    pub fn remove_token_metadata_admin(&mut self, account_id: AccountId) {
+    pub fn remove_token_metadata_admin(&mut self, account_id: ValidAccountId) {
         self.assert_owner();
-        if !self.token_metadata_admins.remove(&account_id) {
+        if !self.token_metadata_admins.remove(&account_id.into()) {
             env::panic("The account is not registered as a token metadata admin".as_bytes());
         }
     }
