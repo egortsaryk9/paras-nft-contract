@@ -34,6 +34,8 @@ const GAS_FOR_MINT: Gas = 90_000_000_000_000;
 const NO_DEPOSIT: Balance = 0;
 const MAX_PRICE: Balance = 1_000_000_000 * 10u128.pow(24);
 
+pub const NFT_PRICE: u128 = 3_490_000_000_000_000_000_000_000;
+
 pub type TokenSeriesId = String;
 pub type TimestampSec = u32;
 pub type ContractAndTokenId = String;
@@ -134,6 +136,7 @@ pub struct Contract {
     transaction_fee: TransactionFee,
     market_data_transaction_fee: MarketDataTransactionFee,
     token_metadata_admins: LookupSet<AccountId>,
+    default_token_metadata: LazyOption<TokenMetadata>,
 }
 
 const DATA_IMAGE_SVG_PARAS_ICON: &str = "data:image/svg+xml,%3Csvg width='1080' height='1080' viewBox='0 0 1080 1080' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1080' height='1080' rx='10' fill='%230000BA'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M335.238 896.881L240 184L642.381 255.288C659.486 259.781 675.323 263.392 689.906 266.718C744.744 279.224 781.843 287.684 801.905 323.725C827.302 369.032 840 424.795 840 491.014C840 557.55 827.302 613.471 801.905 658.779C776.508 704.087 723.333 726.74 642.381 726.74H468.095L501.429 896.881H335.238ZM387.619 331.329L604.777 369.407C614.008 371.807 622.555 373.736 630.426 375.513C660.02 382.193 680.042 386.712 690.869 405.963C704.575 430.164 711.428 459.95 711.428 495.321C711.428 530.861 704.575 560.731 690.869 584.932C677.163 609.133 648.466 621.234 604.777 621.234H505.578L445.798 616.481L387.619 331.329Z' fill='white'/%3E%3C/svg%3E";
@@ -150,7 +153,8 @@ enum StorageKey {
     TokensBySeriesInner { token_series: String },
     TokensPerOwner { account_hash: Vec<u8> },
     MarketDataTransactionFee,
-    TokenMetadataAdmins
+    TokenMetadataAdmins,
+    DefaultTokenMetadata
 }
 
 #[near_bindgen]
@@ -170,6 +174,20 @@ impl Contract {
                 reference_hash: None,
             },
             500,
+            TokenMetadata {
+                title: Some("Default Title".to_string()), 
+                description: Some("Default Description".to_string()),
+                media: None,
+                media_hash: None, 
+                copies: None,
+                issued_at: None,
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: None,
+                reference_hash: None
+            }
         )
     }
 
@@ -179,6 +197,7 @@ impl Contract {
         treasury_id: ValidAccountId, 
         metadata: NFTContractMetadata,
         current_fee: u16,
+        default_token_metadata: TokenMetadata,
     ) -> Self {
         metadata.assert_valid();
         let mut this = Self {
@@ -201,32 +220,9 @@ impl Contract {
                 transaction_fee: UnorderedMap::new(StorageKey::MarketDataTransactionFee)
             },
             token_metadata_admins: LookupSet::new(StorageKey::TokenMetadataAdmins),
+            default_token_metadata: LazyOption::new(StorageKey::DefaultTokenMetadata, Some(&default_token_metadata)),
         };
         this.token_metadata_admins.insert(&owner_id.into());
-        this
-    }
-
-    #[init(ignore_state)]
-    pub fn migrate() -> Self {
-        let prev: ContractV1 = env::state_read().expect("ERR_NOT_INITIALIZED");
-        assert_eq!(
-            env::predecessor_account_id(),
-            prev.tokens.owner_id,
-            "Paras: Only owner"
-        );
-
-        let this = Contract {
-            tokens: prev.tokens,
-            metadata: prev.metadata,
-            token_series_by_id: prev.token_series_by_id,
-            treasury_id: prev.treasury_id,
-            transaction_fee: prev.transaction_fee,
-            market_data_transaction_fee: MarketDataTransactionFee{
-                transaction_fee: UnorderedMap::new(StorageKey::MarketDataTransactionFee)
-            },
-            token_metadata_admins: LookupSet::new(StorageKey::TokenMetadataAdmins)
-        };
-
         this
     }
 
@@ -405,51 +401,97 @@ impl Contract {
 
         refund_deposit(env::storage_usage() - initial_storage_usage, 0);
 
-		TokenSeriesJson{
+		    TokenSeriesJson{
             token_series_id,
-			metadata: token_metadata,
-			creator_id: caller_id.into(),
+			      metadata: token_metadata,
+			      creator_id: caller_id.into(),
             royalty: royalty_res,
             transaction_fee: Some(current_transaction_fee.into()) 
-		}
+		    }
+
     }
 
     #[payable]
-    pub fn nft_buy(
-        &mut self, 
-        token_series_id: TokenSeriesId
-    ) -> TokenId {
+    pub fn nft_buy(&mut self) -> TokenId {
+
         let initial_storage_usage = env::storage_usage();
         let attached_deposit = env::attached_deposit();
         let receiver_id = env::predecessor_account_id();
-        let token_series = self.token_series_by_id.get(&token_series_id).expect("Paras: Token series not exist");
-        let price: u128 = token_series.price.expect("Paras: not for sale");
+
         assert!(
-            attached_deposit >= price,
+            attached_deposit >= NFT_PRICE,
             "Paras: attached deposit is less than price : {}",
-            price
+            NFT_PRICE
         );
+
+        // Create Series
+        let token_series_id = format!("{}", (self.token_series_by_id.len() + 1));
+        assert!(self.token_series_by_id.get(&token_series_id).is_none(), "Paras: duplicate token_series_id");
+        
+        let price = Some(NFT_PRICE);
+        let royalty_res = HashMap::new();
+        let token_metadata = self.default_token_metadata.get().expect("Default Token Metadata is not set");
+        
+        self.token_series_by_id.insert(&token_series_id, &TokenSeries{
+            metadata: token_metadata.clone(),
+            creator_id: receiver_id.to_string(),
+            tokens: UnorderedSet::new(
+                StorageKey::TokensBySeriesInner {
+                    token_series: token_series_id.clone(),
+                }
+                .try_to_vec()
+                .unwrap(),
+            ),
+            price: price.clone(),
+            is_mintable: true,
+            royalty: royalty_res.clone(),
+        });
+
+        // set market data transaction fee
+        let current_transaction_fee = self.calculate_current_transaction_fee();
+        self.market_data_transaction_fee.transaction_fee.insert(&token_series_id, &current_transaction_fee);
+
+        env::log(
+            json!({
+                "type": "nft_create_series",
+                "params": {
+                    "token_series_id": token_series_id,
+                    "token_metadata": token_metadata,
+                    "creator_id": receiver_id,
+                    "price": price,
+                    "royalty": royalty_res,
+                    "transaction_fee": &current_transaction_fee.to_string()
+                }
+            })
+            .to_string()
+            .as_bytes(),
+        );
+
+        let token_series = self.token_series_by_id.get(&token_series_id).expect("Paras: Token series not exist");
+        // let price: u128 = token_series.price.expect("Paras: not for sale");
+
         let token_id: TokenId = self._nft_mint_series(token_series_id.clone(), receiver_id.to_string());
 
-        let for_treasury = price as u128 * self.calculate_market_data_transaction_fee(&token_series_id) / 10_000u128;
-        let price_deducted = price - for_treasury;
+        let for_treasury = NFT_PRICE * self.calculate_market_data_transaction_fee(&token_series_id) / 10_000u128;
+        let price_deducted = NFT_PRICE - for_treasury;
         Promise::new(token_series.creator_id).transfer(price_deducted);
 
         if for_treasury != 0 {
             Promise::new(self.treasury_id.clone()).transfer(for_treasury);
         }
 
-        refund_deposit(env::storage_usage() - initial_storage_usage, price);
+        refund_deposit(env::storage_usage() - initial_storage_usage, NFT_PRICE);
 
         NearEvent::log_nft_mint(
             receiver_id.to_string(),
             vec![token_id.clone()],
-            Some(json!({"price": price.to_string()}).to_string())
+            Some(json!({"price": NFT_PRICE.to_string()}).to_string())
         );
 
         token_id
     }
 
+    
     #[payable]
     pub fn nft_mint(
         &mut self, 
@@ -822,7 +864,7 @@ impl Contract {
         // CUSTOM (switch metadata for the token_series metadata)
         let mut token_id_iter = token_id.split(TOKEN_DELIMETER);
         let token_series_id = token_id_iter.next().unwrap().parse().unwrap();
-                let series_metadata = self.token_series_by_id.get(&token_series_id).unwrap().metadata;
+        let series_metadata = self.token_series_by_id.get(&token_series_id).unwrap().metadata;
 
         let mut token_metadata = self.tokens.token_metadata_by_id.as_ref().unwrap().get(&token_id).unwrap();
 
@@ -1099,14 +1141,37 @@ impl Contract {
         token_metadata: TokenMetadata
     ) {
         self.assert_token_metadata_admin();
+        let mut token_id_iter = token_id.split(TOKEN_DELIMETER);
+        let token_series_id = token_id_iter.next().unwrap().parse().unwrap();
+
         if self.tokens.owner_by_id.get(&token_id).is_none() {
             env::panic("Token id does not exist".as_bytes());
         };
+
+        if let Some(token_series_by_id) = &mut self.token_series_by_id.get(&token_series_id) {
+            token_series_by_id.metadata = token_metadata.clone();
+            self.token_series_by_id.insert(&token_series_id, token_series_by_id);
+
+        } else {
+            env::panic("Token Metadata series is not found".as_bytes());
+        };
+
         if let Some(token_metadata_by_id) = &mut self.tokens.token_metadata_by_id {
             token_metadata_by_id.insert(&token_id, &token_metadata);
         } else {
             env::panic("Token Metadata extension is not set".as_bytes());
         };
+        
+    }
+
+    #[payable]
+    pub fn set_default_token_metadata(
+        &mut self,
+        default_token_metadata: TokenMetadata
+    ) {
+        self.assert_token_metadata_admin();
+        default_token_metadata.assert_valid();
+        self.default_token_metadata.set(&default_token_metadata);
     }
 
     fn assert_owner(&self) {
