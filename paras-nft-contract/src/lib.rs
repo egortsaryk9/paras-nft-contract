@@ -230,6 +230,8 @@ impl Contract {
 
     #[payable]
     pub fn set_transaction_fee(&mut self, next_fee: u16, start_time: Option<TimestampSec>) {
+        assert!(false, "'set_transaction_fee' is forbidden");
+
         assert_one_yocto();
         assert_eq!(
             env::predecessor_account_id(),
@@ -259,6 +261,7 @@ impl Contract {
     }
 
     pub fn calculate_market_data_transaction_fee(&mut self, token_series_id: &TokenSeriesId) -> u128{
+        assert!(false, "'calculate_market_data_transaction_fee' is forbidden");
         if let Some(transaction_fee) = self.market_data_transaction_fee.transaction_fee.get(&token_series_id){
             return transaction_fee;
         }
@@ -269,6 +272,7 @@ impl Contract {
 
 
     pub fn calculate_current_transaction_fee(&mut self) -> u128 {
+        assert!(false, "'calculate_current_transaction_fee' is forbidden");
         let transaction_fee: &TransactionFee = &self.transaction_fee;
         if transaction_fee.next_fee.is_some() {
             if to_sec(env::block_timestamp()) >= transaction_fee.start_time.unwrap() {
@@ -477,15 +481,17 @@ impl Contract {
 
         let token_id: TokenId = self._nft_mint_series(token_series_id.clone(), receiver_id.to_string());
 
-        let for_treasury = NFT_PRICE * self.calculate_market_data_transaction_fee(&token_series_id) / 10_000u128;
-        let price_deducted = NFT_PRICE - for_treasury;
-        Promise::new(token_series.creator_id).transfer(price_deducted);
+        // let for_treasury = NFT_PRICE * self.calculate_market_data_transaction_fee(&token_series_id) / 10_000u128;
+        // let price_deducted = NFT_PRICE - for_treasury;
+        // Promise::new(token_series.creator_id).transfer(price_deducted);
 
-        if for_treasury != 0 {
-            Promise::new(self.treasury_id.clone()).transfer(for_treasury);
-        }
+        // if for_treasury != 0 {
+        //     Promise::new(self.treasury_id.clone()).transfer(for_treasury);
+        // }
 
-        refund_deposit(env::storage_usage() - initial_storage_usage, NFT_PRICE);
+        // refund_deposit(env::storage_usage() - initial_storage_usage, NFT_PRICE);
+
+        Promise::new(self.treasury_id.clone()).transfer(NFT_PRICE);
 
         NearEvent::log_nft_mint(
             receiver_id.to_string(),
@@ -698,6 +704,7 @@ impl Contract {
 
     #[payable]
     pub fn nft_set_series_price(&mut self, token_series_id: TokenSeriesId, price: Option<U128>) -> Option<U128> {
+        assert!(false, "'nft_set_series_price' is forbidden");
         assert_one_yocto();
 
         let mut token_series = self.token_series_by_id.get(&token_series_id).expect("Token series not exist");
@@ -747,6 +754,7 @@ impl Contract {
 
     #[payable]
     pub fn nft_burn(&mut self, token_id: TokenId) {
+        assert!(false, "'nft_burn' is forbidden");
         assert_one_yocto();
 
         let owner_id = self.tokens.owner_by_id.get(&token_id).unwrap();
