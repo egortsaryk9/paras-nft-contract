@@ -867,13 +867,7 @@ impl Contract {
 
         let mut token_metadata = self.tokens.token_metadata_by_id.as_ref().unwrap().get(&token_id).unwrap();
 
-        // token_metadata.title = Some(format!(
-        //     "{}{}{}",
-        //     series_metadata.title.unwrap(),
-        //     TITLE_DELIMETER,
-        //     token_id_iter.next().unwrap()
-        // ));
-
+        token_metadata.title = series_metadata.title;
         token_metadata.reference = series_metadata.reference;
         token_metadata.media = series_metadata.media;
         token_metadata.copies = series_metadata.copies;
@@ -1169,7 +1163,6 @@ impl Contract {
         default_token_metadata: TokenMetadata
     ) {
         self.assert_token_metadata_admin();
-        default_token_metadata.assert_valid();
         self.default_token_metadata.set(&default_token_metadata);
     }
 
@@ -1428,7 +1421,7 @@ mod tests {
             .build()
         );
 
-        let token_id = contract.nft_buy("1".to_string());
+        let token_id = contract.nft_buy();
 
         let token_from_nft_token = contract.nft_token(token_id);
         assert_eq!(
@@ -1585,7 +1578,7 @@ mod tests {
             .build()
         );
 
-        let token_id = contract.nft_buy("1".to_string());
+        let token_id = contract.nft_buy();
 
         let token_from_nft_token = contract.nft_token(token_id);
         assert_eq!(
