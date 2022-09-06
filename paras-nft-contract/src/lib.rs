@@ -36,6 +36,8 @@ const NO_DEPOSIT: Balance = 0;
 
 pub const NFT_PRICE: u128 = 3_480_000_000_000_000_000_000_000;
 pub const NFT_REGISTRATION_FEE: u128 = 20_000_000_000_000_000_000_000;
+pub const NFT_TOTAL_PRICE: u128 = NFT_PRICE + NFT_REGISTRATION_FEE;
+
 
 pub const NFT_MAX_SUPPLY: u128 = 26_800;
 
@@ -430,9 +432,9 @@ impl Contract {
         self.asset_max_supply_limit();
         
         assert!(
-            attached_deposit >= NFT_PRICE,
-            "Paras: attached deposit is less than price : {}",
-            NFT_PRICE
+            attached_deposit == NFT_TOTAL_PRICE,
+            "Attached deposit must be equal to : {}",
+            NFT_TOTAL_PRICE
         );
 
         // Create Series
