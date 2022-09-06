@@ -7,7 +7,7 @@ use near_contract_standards::non_fungible_token::metadata::{
 use near_contract_standards::non_fungible_token::NonFungibleToken;
 use near_contract_standards::non_fungible_token::{Token, TokenId};
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, UnorderedMap, UnorderedSet};
+use near_sdk::collections::{LazyOption, LookupSet, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::{ValidAccountId, U128, U64};
 use near_sdk::{
     assert_one_yocto, env, near_bindgen, serde_json::json, AccountId, Balance, BorshStorageKey,
@@ -132,7 +132,8 @@ pub struct Contract {
     token_series_by_id: UnorderedMap<TokenSeriesId, TokenSeries>,
     treasury_id: AccountId,
     transaction_fee: TransactionFee,
-    market_data_transaction_fee: MarketDataTransactionFee
+    market_data_transaction_fee: MarketDataTransactionFee,
+    token_metadata_admins: LookupSet<AccountId>,
 }
 
 const DATA_IMAGE_SVG_PARAS_ICON: &str = "data:image/svg+xml,%3Csvg width='1080' height='1080' viewBox='0 0 1080 1080' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='1080' height='1080' rx='10' fill='%230000BA'/%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M335.238 896.881L240 184L642.381 255.288C659.486 259.781 675.323 263.392 689.906 266.718C744.744 279.224 781.843 287.684 801.905 323.725C827.302 369.032 840 424.795 840 491.014C840 557.55 827.302 613.471 801.905 658.779C776.508 704.087 723.333 726.74 642.381 726.74H468.095L501.429 896.881H335.238ZM387.619 331.329L604.777 369.407C614.008 371.807 622.555 373.736 630.426 375.513C660.02 382.193 680.042 386.712 690.869 405.963C704.575 430.164 711.428 459.95 711.428 495.321C711.428 530.861 704.575 560.731 690.869 584.932C677.163 609.133 648.466 621.234 604.777 621.234H505.578L445.798 616.481L387.619 331.329Z' fill='white'/%3E%3C/svg%3E";
@@ -149,6 +150,7 @@ enum StorageKey {
     TokensBySeriesInner { token_series: String },
     TokensPerOwner { account_hash: Vec<u8> },
     MarketDataTransactionFee,
+    TokenMetadataAdmins
 }
 
 #[near_bindgen]
@@ -198,6 +200,7 @@ impl Contract {
             market_data_transaction_fee: MarketDataTransactionFee{
                 transaction_fee: UnorderedMap::new(StorageKey::MarketDataTransactionFee)
             },
+            token_metadata_admins: LookupSet::new(StorageKey::TokenMetadataAdmins),
         }
     }
 
@@ -219,6 +222,7 @@ impl Contract {
             market_data_transaction_fee: MarketDataTransactionFee{
                 transaction_fee: UnorderedMap::new(StorageKey::MarketDataTransactionFee)
             },
+            token_metadata_admins: LookupSet::new(StorageKey::TokenMetadataAdmins)
         };
 
         this
@@ -1084,6 +1088,53 @@ impl Contract {
     pub fn get_owner(&self) -> AccountId {
         self.tokens.owner_id.clone()
     }
+
+
+    #[payable]
+    pub fn nft_set_metadata(
+        &mut self,
+        token_id: TokenId,
+        token_metadata: TokenMetadata
+    ) {
+        self.assert_token_metadata_admin();
+        if self.tokens.owner_by_id.get(&token_id).is_none() {
+            env::panic("Token id does not exist".as_bytes());
+        };
+        if let Some(token_metadata_by_id) = &mut self.tokens.token_metadata_by_id {
+            token_metadata_by_id.insert(&token_id, &token_metadata);
+        } else {
+            env::panic("Token Metadata extension is not set".as_bytes());
+        };
+    }
+
+    fn assert_owner(&self) {
+        assert_eq!(
+            env::predecessor_account_id(),
+            self.tokens.owner_id,
+            "Paras: Owner only"
+        );
+    }
+
+    fn assert_token_metadata_admin(&self) {
+        assert!(self.token_metadata_admins.contains(&env::predecessor_account_id()),
+            "This operation is restricted to token token metadata admin"
+        );
+    }
+
+    pub fn add_token_metadata_admin(&mut self, account_id: AccountId) {
+        self.assert_owner();
+        if !self.token_metadata_admins.insert(&account_id) {
+            env::panic("The account is already registered as a token metadata admin".as_bytes());
+        }
+    }
+
+    pub fn remove_token_metadata_admin(&mut self, account_id: AccountId) {
+        self.assert_owner();
+        if !self.token_metadata_admins.remove(&account_id) {
+            env::panic("The account is not registered as a token metadata admin".as_bytes());
+        }
+    }
+
 }
 
 fn royalty_to_payout(a: u32, b: Balance) -> U128 {
