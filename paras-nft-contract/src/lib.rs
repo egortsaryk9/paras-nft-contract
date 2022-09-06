@@ -428,7 +428,6 @@ impl Contract {
         let token_series_id = format!("{}", (self.token_series_by_id.len() + 1));
         assert!(self.token_series_by_id.get(&token_series_id).is_none(), "Paras: duplicate token_series_id");
         
-        let price = Some(NFT_PRICE);
         let royalty_res = HashMap::new();
         let token_metadata = self.default_token_metadata.get().expect("Default Token Metadata is not set");
         
@@ -442,7 +441,7 @@ impl Contract {
                 .try_to_vec()
                 .unwrap(),
             ),
-            price: price.clone(),
+            price: Some(Balance::from(NFT_PRICE)),
             is_mintable: true,
             royalty: royalty_res.clone(),
         });
@@ -458,7 +457,7 @@ impl Contract {
                     "token_series_id": token_series_id,
                     "token_metadata": token_metadata,
                     "creator_id": receiver_id,
-                    "price": price,
+                    "price": Some(NFT_PRICE),
                     "royalty": royalty_res,
                     "transaction_fee": &current_transaction_fee.to_string()
                 }
